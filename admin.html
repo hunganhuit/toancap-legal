@@ -57,6 +57,12 @@
     .meta { color: var(--muted); font-size: .8rem; margin-top: 18px; }
     .pill { font-size:.72rem; padding:3px 9px; border-radius:999px; background:var(--panel2);
       color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 600; font-size: .8rem; text-transform: uppercase;}
+    td:not(:first-child), th:not(:first-child) { text-align: right; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: var(--panel2); }
   </style>
 </head>
 <body>
@@ -78,6 +84,16 @@
         <div class="panel"><canvas id="trend" height="150"></canvas></div>
         <div class="panel"><canvas id="grade" height="150"></canvas></div>
       </div>
+
+      <h2>Nội dung (ngân hàng câu hỏi)</h2>
+      <div class="cards" id="contentCards"></div>
+      <div class="panel" style="margin-top:14px">
+        <table id="contentTable">
+          <thead><tr><th>Lớp</th><th>Bài học</th><th>Câu hỏi</th><th>Đề KT</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
       <p class="meta" id="meta"></p>
     </div>
     <div class="empty" id="empty">Nhập API base + admin token rồi bấm “Tải”.</div>
@@ -133,6 +149,19 @@
             backgroundColor: '#35d0a5', borderRadius: 6 }] },
         options: chartOpts('Học sinh theo lớp')
       });
+
+      // Content bank
+      const c = d.content;
+      $('contentCards').innerHTML =
+        cardHtml('Câu hỏi', fmt(c.questions), `${fmt(c.books)} bộ sách`, '📚','accent') +
+        cardHtml('Bài học', fmt(c.lessons), `${fmt(c.chapters)} chủ đề`, '📖') +
+        cardHtml('Lý thuyết', fmt(c.sections), 'phần kiến thức/ví dụ', '📝') +
+        cardHtml('Đề kiểm tra', fmt(c.tests), '', '🧪') +
+        cardHtml('Bộ nâng cao', fmt(c.practiceSets), 'practice sets', '🚀','green');
+      $('contentTable').querySelector('tbody').innerHTML = c.byGrade.map(g =>
+        `<tr><td>${g.grade.replace('GRADE_','Lớp ')}</td>
+          <td>${fmt(g.lessons)}</td><td>${fmt(g.questions)}</td>
+          <td>${fmt(g.tests)}</td></tr>`).join('');
 
       $('meta').textContent = 'Cập nhật: '
         + new Date(d.generatedAt).toLocaleString('vi-VN');

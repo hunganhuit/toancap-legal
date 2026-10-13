@@ -4,111 +4,182 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Toán Tiểu Học — Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
+    :root {
+      --bg: #0c0d1a; --panel: #15172a; --panel2: #1c1e35; --line: #2a2d4a;
+      --text: #e9e9f6; --muted: #8f90b5; --accent: #7c6cff; --accent2: #35d0a5;
+      --warn: #ffb02e; --danger: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0f1020; color: #e8e8f5; max-width: 760px; margin: 0 auto;
-      padding: 32px 20px; line-height: 1.5;
+      background: var(--bg); color: var(--text); margin: 0; min-height: 100vh;
     }
-    h1 { color: #8b7dff; font-size: 1.4rem; }
-    .row { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 28px; border-bottom: 1px solid var(--line); background: var(--panel);
+      position: sticky; top: 0; z-index: 10; flex-wrap: wrap; gap: 12px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+    .brand .dot { width: 26px; height: 26px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     input {
-      flex: 1; min-width: 200px; padding: 10px 12px; border-radius: 10px;
-      border: 1px solid #333; background: #1a1b2e; color: #fff; font-size: 0.95rem;
+      padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line);
+      background: var(--panel2); color: var(--text); font-size: 0.9rem; min-width: 170px;
     }
     button {
-      padding: 10px 20px; border: 0; border-radius: 10px; background: #6B5DE0;
-      color: #fff; font-weight: 600; cursor: pointer; font-size: 0.95rem;
+      padding: 9px 18px; border: 0; border-radius: 10px; background: var(--accent);
+      color: #fff; font-weight: 600; cursor: pointer; font-size: 0.9rem;
     }
-    button:disabled { opacity: 0.5; cursor: default; }
-    .grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 12px; margin-top: 20px;
-    }
+    button:disabled { opacity: .5; cursor: default; }
+    main { padding: 24px 28px; max-width: 1100px; margin: 0 auto; }
+    .err { color: var(--danger); margin: 12px 0; min-height: 1.2em; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+      gap: 14px; }
     .card {
-      background: #1a1b2e; border: 1px solid #2a2b45; border-radius: 14px;
-      padding: 16px 18px;
+      background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+      padding: 18px 20px; position: relative; overflow: hidden;
     }
-    .card .label { color: #9a9ac0; font-size: 0.8rem; }
-    .card .value { font-size: 1.9rem; font-weight: 700; margin-top: 4px; }
-    .muted { color: #7a7a9a; font-size: 0.85rem; margin-top: 20px; }
-    .err { color: #ff8080; margin-top: 12px; }
-    .section-title { color: #9a9ac0; font-size: 0.85rem; margin: 24px 0 4px; }
+    .card .ico { position: absolute; right: 14px; top: 14px; font-size: 1.3rem; opacity:.5;}
+    .card .label { color: var(--muted); font-size: .82rem; }
+    .card .value { font-size: 2rem; font-weight: 800; margin-top: 6px; letter-spacing:-.5px;}
+    .card .sub { color: var(--muted); font-size: .78rem; margin-top: 2px; }
+    .accent { color: var(--accent); } .green { color: var(--accent2); }
+    h2 { font-size: .95rem; color: var(--muted); margin: 30px 0 12px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .5px; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+      padding: 18px 20px; }
+    .charts { display: grid; grid-template-columns: 1.6fr 1fr; gap: 14px; }
+    @media (max-width: 760px) { .charts { grid-template-columns: 1fr; } }
+    .empty { color: var(--muted); text-align: center; padding: 80px 20px; }
+    .meta { color: var(--muted); font-size: .8rem; margin-top: 18px; }
+    .pill { font-size:.72rem; padding:3px 9px; border-radius:999px; background:var(--panel2);
+      color: var(--muted); }
   </style>
 </head>
 <body>
-  <h1>Toán Tiểu Học — Bảng điều khiển</h1>
-  <div class="row">
-    <input id="base" placeholder="API base URL"
-      value="https://toancap1-production.up.railway.app" />
-  </div>
-  <div class="row">
-    <input id="token" type="password" placeholder="Admin token (X-Admin-Token)" />
-    <button id="load" onclick="load()">Xem số liệu</button>
-  </div>
-  <div id="err" class="err"></div>
-
-  <div class="section-title">Người dùng</div>
-  <div class="grid" id="userGrid"></div>
-  <div class="section-title">Học tập</div>
-  <div class="grid" id="learnGrid"></div>
-  <div class="section-title">Hoạt động 7 ngày</div>
-  <div class="grid" id="activeGrid"></div>
-
-  <p class="muted" id="meta"></p>
-  <p class="muted">Trang nội bộ. Token lưu tạm trong trình duyệt phiên này, không gửi đi đâu
-    ngoài API của bạn.</p>
+  <header>
+    <div class="brand"><span class="dot"></span> Toán Tiểu Học · Admin</div>
+    <div class="controls">
+      <input id="base" placeholder="API base URL" />
+      <input id="token" type="password" placeholder="Admin token" />
+      <button id="load" onclick="load()">Tải</button>
+      <span class="pill" id="auto"></span>
+    </div>
+  </header>
+  <main>
+    <div class="err" id="err"></div>
+    <div id="dash" style="display:none">
+      <div class="cards" id="cards"></div>
+      <h2>Biểu đồ</h2>
+      <div class="charts">
+        <div class="panel"><canvas id="trend" height="150"></canvas></div>
+        <div class="panel"><canvas id="grade" height="150"></canvas></div>
+      </div>
+      <p class="meta" id="meta"></p>
+    </div>
+    <div class="empty" id="empty">Nhập API base + admin token rồi bấm “Tải”.</div>
+  </main>
 
   <script>
     const $ = id => document.getElementById(id);
-    // Nhớ token/base trong sessionStorage cho tiện (chỉ phiên hiện tại).
-    $('base').value = sessionStorage.getItem('adminBase') || $('base').value;
+    const fmt = n => (n ?? 0).toLocaleString('vi-VN');
+    let trendChart, gradeChart, timer;
+
+    $('base').value = sessionStorage.getItem('adminBase')
+      || 'https://toancap1-production.up.railway.app';
     $('token').value = sessionStorage.getItem('adminToken') || '';
 
-    function card(label, value) {
-      return `<div class="card"><div class="label">${label}</div>
-        <div class="value">${value}</div></div>`;
+    function cardHtml(label, value, sub, ico, cls) {
+      return `<div class="card"><div class="ico">${ico||''}</div>
+        <div class="label">${label}</div>
+        <div class="value ${cls||''}">${value}</div>
+        <div class="sub">${sub||'&nbsp;'}</div></div>`;
+    }
+
+    function render(d) {
+      const acc = d.attemptsTotal ? Math.round(100*d.attemptsCorrect/d.attemptsTotal) : 0;
+      const perStudent = d.students ? (d.attemptsTotal/d.students).toFixed(1) : '0';
+      $('cards').innerHTML =
+        cardHtml('Người dùng', fmt(d.usersTotal),
+          `${fmt(d.usersApple)} Apple · ${fmt(d.usersGuest)} khách`, '👤') +
+        cardHtml('Học sinh', fmt(d.students), `${perStudent} câu/học sinh`, '🎒') +
+        cardHtml('Câu đã trả lời', fmt(d.attemptsTotal), `${acc}% đúng`, '✍️','accent') +
+        cardHtml('Premium', fmt(d.subscriptionsActive), 'gói đang hoạt động', '⭐','green') +
+        cardHtml('Hoạt động 7 ngày', fmt(d.activeStudents7d),
+          `${fmt(d.attempts7d)} câu · ${fmt(d.newUsers7d)} user mới`, '🔥') +
+        cardHtml('Tỉ lệ đúng', acc + '%', `${fmt(d.attemptsCorrect)} câu đúng`, '🎯','green');
+
+      // Trend line
+      const labels = d.dailyAttempts.map(p => p.date.slice(5)); // MM-DD
+      const data = d.dailyAttempts.map(p => p.attempts);
+      trendChart?.destroy();
+      trendChart = new Chart($('trend'), {
+        type: 'line',
+        data: { labels, datasets: [{ label: 'Câu trả lời / ngày', data,
+          borderColor: '#7c6cff', backgroundColor: 'rgba(124,108,255,.15)',
+          fill: true, tension: .35, pointRadius: 2 }] },
+        options: chartOpts('Xu hướng 14 ngày')
+      });
+
+      // Grade bars
+      gradeChart?.destroy();
+      gradeChart = new Chart($('grade'), {
+        type: 'bar',
+        data: { labels: d.byGrade.map(g => g.grade.replace('GRADE_','Lớp ')),
+          datasets: [{ label: 'Học sinh', data: d.byGrade.map(g => g.students),
+            backgroundColor: '#35d0a5', borderRadius: 6 }] },
+        options: chartOpts('Học sinh theo lớp')
+      });
+
+      $('meta').textContent = 'Cập nhật: '
+        + new Date(d.generatedAt).toLocaleString('vi-VN');
+    }
+
+    function chartOpts(title) {
+      return {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          title: { display: true, text: title, color: '#8f90b5', font: { size: 12 } }
+        },
+        scales: {
+          x: { ticks: { color: '#8f90b5' }, grid: { color: 'rgba(255,255,255,.04)' } },
+          y: { beginAtZero: true, ticks: { color: '#8f90b5', precision: 0 },
+            grid: { color: 'rgba(255,255,255,.06)' } }
+        }
+      };
     }
 
     async function load() {
       const base = $('base').value.replace(/\/$/, '');
       const token = $('token').value.trim();
-      $('err').textContent = '';
-      $('load').disabled = true;
       sessionStorage.setItem('adminBase', base);
       sessionStorage.setItem('adminToken', token);
+      $('err').textContent = ''; $('load').disabled = true;
       try {
-        const res = await fetch(base + '/api/v1/admin/stats', {
-          headers: { 'X-Admin-Token': token }
-        });
-        if (!res.ok) {
-          throw new Error(res.status === 404
-            ? 'Sai token hoặc admin chưa bật (404).'
-            : 'Lỗi ' + res.status);
-        }
-        const d = (await res.json()).data;
-        $('userGrid').innerHTML =
-          card('Tổng người dùng', d.usersTotal) +
-          card('Khách (guest)', d.usersGuest) +
-          card('Apple', d.usersApple) +
-          card('Đang hoạt động', d.usersActive) +
-          card('Học sinh', d.students) +
-          card('Gói Premium', d.subscriptionsActive);
-        $('learnGrid').innerHTML =
-          card('Tổng câu trả lời', d.attemptsTotal) +
-          card('Câu đúng', d.attemptsCorrect) +
-          card('Tỉ lệ đúng', d.attemptsTotal
-            ? Math.round(100 * d.attemptsCorrect / d.attemptsTotal) + '%' : '—');
-        $('activeGrid').innerHTML =
-          card('Học sinh học (7 ngày)', d.activeStudents7d) +
-          card('Câu trả lời (7 ngày)', d.attempts7d);
-        $('meta').textContent = 'Cập nhật: ' + new Date(d.generatedAt).toLocaleString('vi-VN');
+        const res = await fetch(base + '/api/v1/admin/stats',
+          { headers: { 'X-Admin-Token': token } });
+        if (!res.ok) throw new Error(res.status === 404
+          ? 'Sai token hoặc admin chưa bật (set ADMIN_TOKEN trên Railway).'
+          : 'Lỗi ' + res.status);
+        render((await res.json()).data);
+        $('empty').style.display = 'none';
+        $('dash').style.display = 'block';
+        startAuto();
       } catch (e) {
         $('err').textContent = e.message;
-      } finally {
-        $('load').disabled = false;
-      }
+      } finally { $('load').disabled = false; }
     }
+
+    function startAuto() {
+      clearInterval(timer);
+      timer = setInterval(load, 30000); // tự làm mới mỗi 30s
+      $('auto').textContent = 'tự làm mới 30s';
+    }
+
     if ($('token').value) load();
   </script>
 </body>

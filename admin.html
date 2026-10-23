@@ -63,6 +63,58 @@
     td:not(:first-child), th:not(:first-child) { text-align: right; }
     tbody tr:last-child td { border-bottom: 0; }
     tbody tr:hover { background: var(--panel2); }
+    /* Lesson review */
+    .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+    .tab { background: var(--panel2); color: var(--muted); padding: 7px 14px; }
+    .tab.on { background: var(--accent); color: #fff; }
+    .chk { color: var(--muted); font-size: .85rem; display:flex; gap:6px; align-items:center; }
+    .chk input { min-width: 0; }
+    details.ch { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+      margin-bottom: 10px; overflow: hidden; }
+    details.ch > summary { cursor: pointer; padding: 14px 18px; display:flex; gap:10px;
+      align-items:center; flex-wrap:wrap; list-style: none; }
+    details.ch > summary::-webkit-details-marker { display:none; }
+    details.ch > summary b { flex: 1; min-width: 220px; }
+    details.ch table { font-size: .85rem; }
+    details.ch td, details.ch th { padding: 8px 10px; }
+    .lesson-row, .test-row { cursor: pointer; }
+    .test-row:hover { border-color: var(--accent); }
+    .flag { font-size:.68rem; padding:2px 7px; border-radius:999px; margin-left:4px;
+      white-space: nowrap; font-weight: 600; }
+    .f-EMPTY, .f-LEAK { background: rgba(255,107,107,.18); color: var(--danger); }
+    .f-THIN { background: rgba(255,176,46,.18); color: var(--warn); }
+    .f-ONE_LEVEL, .f-NO_THEORY { background: rgba(124,108,255,.18); color: #b3aaff; }
+    .bar { display:flex; height: 8px; border-radius: 4px; overflow:hidden; min-width: 90px;
+      background: var(--panel2); }
+    .bar span { display:block; height:100%; }
+    .m1 { background: #35d0a5; } .m2 { background: #7c6cff; } .m3 { background: #ffb02e; }
+    .legend { color: var(--muted); font-size: .75rem; display:flex; gap:12px; }
+    .legend i { display:inline-block; width:10px; height:10px; border-radius:3px;
+      margin-right:4px; vertical-align: -1px; }
+    /* Lesson drawer */
+    .drawer-bg { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 20;
+      display: none; }
+    .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(860px, 100%);
+      background: var(--bg); border-left: 1px solid var(--line); z-index: 21;
+      overflow-y: auto; padding: 22px 26px; display: none; }
+    .drawer.open, .drawer-bg.open { display: block; }
+    .drawer h3 { margin: 0 0 4px; }
+    .drawer .close { position: sticky; top: 0; float: right; background: var(--panel2); }
+    .theory { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px 14px; margin: 8px 0; font-size: .9rem; line-height: 1.5; }
+    .theory .pill { margin-right: 6px; }
+    .q { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px 14px; margin: 8px 0; font-size: .9rem; }
+    .q.leak { border-color: var(--danger); }
+    .q .top { display:flex; gap:6px; flex-wrap:wrap; color: var(--muted); font-size:.75rem;
+      margin-bottom: 6px; }
+    .q .stem { font-size: .95rem; margin-bottom: 6px; }
+    .q .ans { color: var(--accent2); }
+    .q .ex { color: var(--muted); font-size: .82rem; margin-top: 4px; }
+    .q img { max-width: 220px; border-radius: 8px; display:block; margin: 6px 0; }
+    .opt { display:inline-block; padding: 2px 9px; margin: 2px 4px 2px 0; border-radius: 8px;
+      background: var(--panel2); font-size: .85rem; }
+    .opt.ok { background: rgba(53,208,165,.18); color: var(--accent2); }
   </style>
 </head>
 <body>
@@ -94,10 +146,32 @@
         </table>
       </div>
 
+      <h2>Chi tiết bài học</h2>
+      <div class="toolbar" id="gradeTabs" role="tablist" aria-label="Chọn lớp"></div>
+      <div class="cards" id="healthCards"></div>
+      <div class="toolbar" style="margin-top:14px">
+        <label class="chk"><input type="checkbox" id="onlyIssues" onchange="renderLessons()" />
+          Chỉ bài có vấn đề</label>
+        <input id="lessonSearch" placeholder="Tìm bài…" oninput="renderLessons()"
+          aria-label="Tìm bài học" />
+        <span class="legend"><span><i class="m1"></i>M1 nhận biết</span>
+          <span><i class="m2"></i>M2 thông hiểu</span><span><i class="m3"></i>M3 vận dụng</span>
+        </span>
+      </div>
+      <div id="lessonTree"></div>
+
+      <h2>Bài kiểm tra <span class="meta" id="testGradeName"></span></h2>
+      <div id="testList"></div>
+
       <p class="meta" id="meta"></p>
     </div>
     <div class="empty" id="empty">Nhập API base + admin token rồi bấm “Tải”.</div>
   </main>
+  <div class="drawer-bg" id="drawerBg" onclick="closeLesson()"></div>
+  <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+    <button class="close" onclick="closeLesson()" aria-label="Đóng">Đóng ✕</button>
+    <div id="drawerBody"></div>
+  </aside>
 
   <script>
     const $ = id => document.getElementById(id);
@@ -182,25 +256,283 @@
       };
     }
 
-    async function load() {
+    async function api(path) {
       const base = $('base').value.replace(/\/$/, '');
-      const token = $('token').value.trim();
-      sessionStorage.setItem('adminBase', base);
-      sessionStorage.setItem('adminToken', token);
+      const res = await fetch(base + '/api/v1/admin' + path,
+        { headers: { 'X-Admin-Token': $('token').value.trim() } });
+      if (!res.ok) throw new Error(res.status === 404
+        ? 'Sai token hoặc admin chưa bật (set ADMIN_TOKEN trên Railway).'
+        : 'Lỗi ' + res.status);
+      return (await res.json()).data;
+    }
+
+    async function load() {
+      sessionStorage.setItem('adminBase', $('base').value.replace(/\/$/, ''));
+      sessionStorage.setItem('adminToken', $('token').value.trim());
       $('err').textContent = ''; $('load').disabled = true;
       try {
-        const res = await fetch(base + '/api/v1/admin/stats',
-          { headers: { 'X-Admin-Token': token } });
-        if (!res.ok) throw new Error(res.status === 404
-          ? 'Sai token hoặc admin chưa bật (set ADMIN_TOKEN trên Railway).'
-          : 'Lỗi ' + res.status);
-        render((await res.json()).data);
+        const d = await api('/stats');
+        render(d);
+        renderGradeTabs(d.content.byGrade.map(g => g.grade));
         $('empty').style.display = 'none';
         $('dash').style.display = 'block';
+        if (!gradeData) await loadGrade(currentGrade || d.content.byGrade[0]?.grade);
         startAuto();
       } catch (e) {
         $('err').textContent = e.message;
       } finally { $('load').disabled = false; }
+    }
+
+    // ---------------------------------------------------------------- lesson review
+    const FLAG_LABEL = { EMPTY: 'Trống', THIN: 'Ít câu', ONE_LEVEL: '1 mức',
+      NO_THEORY: 'Thiếu lý thuyết', LEAK: 'Trùng câu đề' };
+    const esc = s => String(s ?? '').replace(/[&<>"']/g,
+      c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const gradeName = g => g.replace('GRADE_', 'Lớp ');
+    let currentGrade = sessionStorage.getItem('adminGrade'), gradeData = null;
+
+    function renderGradeTabs(grades) {
+      $('gradeTabs').innerHTML = grades.map(g =>
+        `<button class="tab ${g === currentGrade ? 'on' : ''}" role="tab"
+          aria-selected="${g === currentGrade}" onclick="loadGrade('${esc(g)}')">
+          ${gradeName(g)}</button>`).join('');
+    }
+
+    async function loadGrade(grade) {
+      if (!grade) return;
+      currentGrade = grade;
+      sessionStorage.setItem('adminGrade', grade);
+      document.querySelectorAll('#gradeTabs .tab').forEach(b => {
+        const on = b.textContent.trim() === gradeName(grade);
+        b.classList.toggle('on', on); b.setAttribute('aria-selected', on);
+      });
+      $('lessonTree').innerHTML = '<p class="meta">Đang tải…</p>';
+      try {
+        gradeData = await api('/content/lessons?grade=' + encodeURIComponent(grade));
+        renderHealth(gradeData.health);
+        renderLessons();
+        loadTests(grade);
+      } catch (e) { $('err').textContent = e.message; }
+    }
+
+    // ---------------------------------------------------------------- test review
+    const TEST_TYPE = { CHAPTER_TEST: 'Kiểm tra chủ đề', MID_TERM: 'Giữa kì',
+      FINAL_TERM: 'Cuối kì', LESSON_TEST: 'Kiểm tra bài', CUSTOM_TEST: 'Tự chọn' };
+
+    async function loadTests(grade) {
+      $('testGradeName').textContent = gradeName(grade);
+      $('testList').innerHTML = '<p class="meta">Đang tải…</p>';
+      try {
+        const d = await api('/content/tests?grade=' + encodeURIComponent(grade));
+        $('testList').innerHTML = d.tests.map(t => {
+          const kind = t.fixedList
+            ? `${t.questionCount} câu (danh sách cố định)`
+            : `${t.slots} mục ma trận · ${t.blueprintQuestions} câu`;
+          return `<div class="q test-row" tabindex="0"
+            onclick="openTest('${t.id}')"
+            onkeydown="if(event.key==='Enter')openTest('${t.id}')">
+            <div class="top">
+              <span class="pill">${TEST_TYPE[t.type] || t.type}</span>
+              ${t.premium ? '<span class="flag f-LEAK">Premium</span>' : ''}
+              <span>${t.durationMinutes} phút</span>
+              <span class="meta">${esc(t.code)}</span>
+            </div>
+            <div class="stem">${esc(t.name)}</div>
+            <div class="meta">${kind}</div>
+          </div>`;
+        }).join('') || '<p class="meta">Lớp này chưa có đề.</p>';
+      } catch (e) { $('testList').innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+    }
+
+    async function openTest(id) {
+      $('drawerBody').innerHTML = '<p class="meta">Đang tải…</p>';
+      $('drawer').classList.add('open'); $('drawerBg').classList.add('open');
+      try {
+        renderTest(await api('/content/tests/' + id));
+        $('drawer').querySelector('.close').focus();
+      } catch (e) { $('drawerBody').innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+    }
+
+    function renderTest(d) {
+      const lvl = n => n == null ? 'mọi mức' : 'M' + n;
+      let body = `<h3 id="dTitle">${esc(d.name)}</h3>
+        <div class="meta" style="margin-top:0">${gradeName(d.grade)} ·
+          ${TEST_TYPE[d.type] || d.type} · ${d.durationMinutes} phút ·
+          ${d.questionCount} câu${d.premium ? ' · Premium' : ''} ·
+          <span class="meta">${esc(d.code)}</span></div>`;
+      if (!d.fixedList) {
+        body += `<h2>Ma trận đề (${d.blueprint.length} mục)</h2>
+          <div class="panel"><table><thead><tr><th>#</th><th>Chủ đề</th><th>Dạng toán</th>
+            <th>Mức</th><th>Số câu</th><th>Ngân hàng</th></tr></thead><tbody>${d.blueprint.map(r =>
+            `<tr${r.candidates < r.questionCount ? ' class="leak"' : ''}>
+              <td>${r.slotNo}</td><td>${esc(r.chapter)}</td>
+              <td>${esc(r.problemTypeName)} <span class="meta">${esc(r.problemType)}</span></td>
+              <td>${lvl(r.level)}</td><td>${r.questionCount}</td>
+              <td>${r.candidates}${r.candidates < r.questionCount
+                ? ' <span class="flag f-LEAK">thiếu</span>' : ''}</td></tr>`).join('')}
+          </tbody></table></div>
+          <p class="meta">Mỗi lần làm, hệ thống bốc ngẫu nhiên đủ số câu của từng mục từ
+            ngân hàng câu đề (ưu tiên câu học sinh chưa gặp).</p>`;
+      } else {
+        body += `<h2>Câu hỏi cố định (${d.fixedQuestions.length})</h2>
+          <div id="qList"></div>`;
+      }
+      $('drawerBody').innerHTML = body;
+      if (d.fixedList) {
+        lessonDetail = { questions: d.fixedQuestions };
+        $('drawerBody').querySelector('#qList').innerHTML =
+          d.fixedQuestions.map(questionCard).join('') || '<p class="meta">Không có câu.</p>';
+      }
+    }
+
+    function renderHealth(h) {
+      $('healthCards').innerHTML =
+        cardHtml('Bài học', fmt(h.lessons), `${fmt(h.practice)} câu luyện tập`, '📖') +
+        cardHtml('Câu đề', fmt(h.exam), 'ngân hàng kiểm tra', '🧪', 'accent') +
+        cardHtml(`Bài < ${h.thinThreshold} câu`, fmt(h.thinLessons + h.emptyLessons),
+          `${fmt(h.emptyLessons)} bài trống`, '⚠️', h.thinLessons ? '' : 'green') +
+        cardHtml('Bài chỉ 1 mức', fmt(h.singleLevelLessons), 'M1/M2/M3 lệch', '📶') +
+        cardHtml('Thiếu lý thuyết', fmt(h.noTheoryLessons), 'kiến thức / ví dụ', '📝') +
+        cardHtml('Câu đề trùng', fmt(h.leakItems), 'giống câu luyện tập', '🔁',
+          h.leakItems ? '' : 'green');
+    }
+
+    function levelBar(l) {
+      const t = l.m1 + l.m2 + l.m3 || 1;
+      return `<div class="bar" title="M1 ${l.m1} · M2 ${l.m2} · M3 ${l.m3}">
+        <span class="m1" style="width:${100 * l.m1 / t}%"></span>
+        <span class="m2" style="width:${100 * l.m2 / t}%"></span>
+        <span class="m3" style="width:${100 * l.m3 / t}%"></span></div>`;
+    }
+
+    const flagsHtml = fs => fs.map(f =>
+      `<span class="flag f-${f}">${FLAG_LABEL[f] || f}</span>`).join('');
+
+    function renderLessons() {
+      if (!gradeData) return;
+      const only = $('onlyIssues').checked;
+      const q = $('lessonSearch').value.trim().toLowerCase();
+      const html = gradeData.chapters.map(ch => {
+        const rows = ch.lessons.filter(l => (!only || l.flags.length)
+          && (!q || l.name.toLowerCase().includes(q)));
+        if (!rows.length) return '';
+        const issues = ch.lessons.filter(l => l.flags.length).length;
+        const practice = ch.lessons.reduce((s, l) => s + l.practice, 0);
+        return `<details class="ch" ${only || q ? 'open' : ''}>
+          <summary><b>${esc(ch.name)}</b>
+            <span class="pill">${ch.lessons.length} bài · ${fmt(practice)} câu</span>
+            <span class="pill">${fmt(ch.examItems)} câu đề · ${ch.tests} đề KT</span>
+            ${issues ? `<span class="flag f-THIN">${issues} bài cần xem</span>` : ''}
+          </summary>
+          <table><thead><tr><th>Bài</th><th>Câu</th><th>Mức</th><th>Dạng</th>
+            <th>Loại câu</th><th>Lý thuyết</th><th>Lượt làm</th><th>Hoàn thành</th>
+          </tr></thead><tbody>${rows.map(l => {
+            const acc = l.attempts ? Math.round(100 * l.correct / l.attempts) + '%' : '–';
+            const types = Object.entries(l.byType).map(([k, v]) =>
+              `${k.replace('SINGLE_CHOICE', 'Chọn').replace('NUMERIC', 'Số')
+                .replace('TRUE_FALSE', 'Đ/S').replace('FILL_BLANK', 'Điền')
+                .replace('MULTIPLE_CHOICE', 'Nhiều')} ${v}`).join(' · ');
+            return `<tr class="lesson-row" tabindex="0" onclick="openLesson('${l.id}')"
+              onkeydown="if(event.key==='Enter')openLesson('${l.id}')">
+              <td>${esc(l.name)} ${flagsHtml(l.flags)}</td>
+              <td>${fmt(l.practice)}</td><td>${levelBar(l)}</td><td>${l.problemTypes}</td>
+              <td style="font-size:.78rem">${types || '–'}</td>
+              <td>${l.knowledge + l.examples}</td>
+              <td>${fmt(l.attempts)} <span class="meta">${acc}</span></td>
+              <td>${fmt(l.completed)}</td></tr>`;
+          }).join('')}</tbody></table></details>`;
+      }).join('');
+      $('lessonTree').innerHTML = html || '<p class="meta">Không có bài nào khớp.</p>';
+    }
+
+    function answerText(q) {
+      const a = q.answerSpec || {};
+      if (q.type === 'NUMERIC') return a.value;
+      if (q.type === 'TRUE_FALSE') return a.correct ? 'Đúng' : 'Sai';
+      if (q.type === 'FILL_BLANK') return (a.blanks || []).map(b => b.join(' / ')).join(' ; ');
+      return q.options.filter(o => o.correct).map(o => o.text).join(', ');
+    }
+
+    async function openLesson(id) {
+      $('drawerBody').innerHTML = '<p class="meta">Đang tải…</p>';
+      $('drawer').classList.add('open'); $('drawerBg').classList.add('open');
+      try {
+        renderLesson(await api('/content/lessons/' + id));
+        $('drawer').querySelector('.close').focus();
+      } catch (e) { $('drawerBody').innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+    }
+
+    function closeLesson() {
+      $('drawer').classList.remove('open'); $('drawerBg').classList.remove('open');
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLesson(); });
+
+    let lessonDetail = null;
+    function renderLesson(d) {
+      lessonDetail = d;
+      const pools = [...new Set(d.questions.map(q => q.pool))];
+      $('drawerBody').innerHTML = `
+        <h3 id="dTitle">${esc(d.name)}</h3>
+        <div class="meta" style="margin-top:0">${gradeName(d.grade)} · ${esc(d.chapter)}</div>
+        <h2>Lý thuyết</h2>
+        ${d.sections.length ? d.sections.map(s => `<div class="theory">
+          <span class="pill">${s.type === 'KNOWLEDGE' ? 'Kiến thức' : 'Ví dụ'}</span>
+          ${esc(s.content?.text || JSON.stringify(s.content))}</div>`).join('')
+          : '<p class="meta">Chưa có lý thuyết.</p>'}
+        <h2>Dạng toán × mức</h2>
+        <div class="panel"><table><thead><tr><th>Dạng</th><th>M1</th><th>M2</th><th>M3</th>
+          <th>Câu đề</th><th>Khác</th></tr></thead><tbody>${d.matrix.map(r => `<tr>
+          <td>${esc(r.name)} <span class="meta">${esc(r.problemType)}</span></td>
+          <td>${r.m1}</td><td>${r.m2}</td><td>${r.m3}</td><td>${r.exam}</td>
+          <td>${r.other}</td></tr>`).join('')}</tbody></table></div>
+        <h2>Câu hỏi (${d.questions.length})</h2>
+        <div class="toolbar">
+          <select id="fPool" onchange="renderQuestions()" aria-label="Lọc pool"
+            style="padding:8px;border-radius:10px;background:var(--panel2);color:var(--text);
+            border:1px solid var(--line)">
+            <option value="">Mọi pool</option>
+            ${pools.map(p => `<option>${p}</option>`).join('')}</select>
+          <select id="fLevel" onchange="renderQuestions()" aria-label="Lọc mức"
+            style="padding:8px;border-radius:10px;background:var(--panel2);color:var(--text);
+            border:1px solid var(--line)">
+            <option value="">Mọi mức</option><option value="1">M1</option>
+            <option value="2">M2</option><option value="3">M3</option></select>
+        </div>
+        <div id="qList"></div>`;
+      renderQuestions();
+    }
+
+    // One question card (reused by the lesson drawer and a fixed-list test).
+    function questionCard(q) {
+      // Images are served by the API host (/q-images/...).
+      const raw = q.content?.imageUrl;
+      const img = raw && raw.startsWith('/') ? $('base').value.replace(/\/$/, '') + raw : raw;
+      const icons = q.content?.countIcon
+        ? `<div class="meta">Hình đếm: ${esc(q.content.countIcon)} × ${q.content.count}</div>`
+        : '';
+      const acc = q.attempts ? ` · ${q.attempts} lượt, ${Math.round(100 * q.correct
+        / q.attempts)}% đúng` : '';
+      return `<div class="q ${q.leak ? 'leak' : ''}">
+        <div class="top"><span class="pill">${q.pool}</span><span class="pill">M${q.level}</span>
+          <span class="pill">${esc(q.type)}</span><span>${esc(q.externalId || '')}</span>
+          <span>${esc(q.problemType)}${acc}</span>
+          ${q.leak ? '<span class="flag f-LEAK">Trùng câu luyện tập</span>' : ''}</div>
+        <div class="stem">${esc(q.content?.text)}</div>
+        ${img ? `<img src="${esc(img)}" alt="Hình minh hoạ câu hỏi" loading="lazy" />` : ''}
+        ${icons}
+        ${q.options.length ? `<div>${q.options.map(o =>
+          `<span class="opt ${o.correct ? 'ok' : ''}">${esc(o.text)}</span>`).join('')}</div>` : ''}
+        <div class="ans">Đáp án: ${esc(answerText(q))}</div>
+        ${q.explanation?.text ? `<div class="ex">${esc(q.explanation.text)}</div>` : ''}
+      </div>`;
+    }
+
+    function renderQuestions() {
+      const d = lessonDetail, pool = $('fPool').value, lvl = $('fLevel').value;
+      const list = d.questions.filter(q => (!pool || q.pool === pool)
+        && (!lvl || String(q.level) === lvl));
+      $('qList').innerHTML = list.map(questionCard).join('')
+        || '<p class="meta">Không có câu nào.</p>';
     }
 
     function startAuto() {

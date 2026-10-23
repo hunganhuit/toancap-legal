@@ -163,6 +163,27 @@
       <h2>Bài kiểm tra <span class="meta" id="testGradeName"></span></h2>
       <div id="testList"></div>
 
+      <h2>Quản lý người dùng</h2>
+      <div class="toolbar">
+        <input id="userSearch" placeholder="Tìm email / tên / thiết bị / IP / id…"
+          aria-label="Tìm người dùng"
+          onkeydown="if(event.key==='Enter'){userPage=0;loadUsers();}" />
+        <button class="tab" onclick="userPage=0;loadUsers()">Tìm</button>
+        <span class="pill" id="userTotal"></span>
+      </div>
+      <div class="panel">
+        <table id="userTable">
+          <thead><tr><th>Người dùng</th><th>Loại</th><th>Thiết bị / IP</th>
+            <th>Học sinh</th><th>Xu</th><th>Premium</th><th>Đăng nhập</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="toolbar" style="justify-content:center;margin-top:12px">
+        <button class="tab" id="userPrev" onclick="userPage--;loadUsers()">‹ Trước</button>
+        <span class="pill" id="userPageLbl"></span>
+        <button class="tab" id="userNext" onclick="userPage++;loadUsers()">Sau ›</button>
+      </div>
+
       <p class="meta" id="meta"></p>
     </div>
     <div class="empty" id="empty">Nhập API base + admin token rồi bấm “Tải”.</div>
@@ -256,14 +277,23 @@
       };
     }
 
-    async function api(path) {
+    async function api(path, method, body) {
       const base = $('base').value.replace(/\/$/, '');
-      const res = await fetch(base + '/api/v1/admin' + path,
-        { headers: { 'X-Admin-Token': $('token').value.trim() } });
-      if (!res.ok) throw new Error(res.status === 404
-        ? 'Sai token hoặc admin chưa bật (set ADMIN_TOKEN trên Railway).'
-        : 'Lỗi ' + res.status);
-      return (await res.json()).data;
+      const opts = { method: method || 'GET',
+        headers: { 'X-Admin-Token': $('token').value.trim() } };
+      if (body !== undefined) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+      }
+      const res = await fetch(base + '/api/v1/admin' + path, opts);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 404 && (!json || !json.error)) {
+          throw new Error('Sai token hoặc admin chưa bật (set ADMIN_TOKEN trên Railway).');
+        }
+        throw new Error(json?.error?.message || ('Lỗi ' + res.status));
+      }
+      return json.data;
     }
 
     async function load() {
@@ -277,6 +307,7 @@
         $('empty').style.display = 'none';
         $('dash').style.display = 'block';
         if (!gradeData) await loadGrade(currentGrade || d.content.byGrade[0]?.grade);
+        if (!usersLoaded) { usersLoaded = true; loadUsers(); }
         startAuto();
       } catch (e) {
         $('err').textContent = e.message;
@@ -533,6 +564,126 @@
         && (!lvl || String(q.level) === lvl));
       $('qList').innerHTML = list.map(questionCard).join('')
         || '<p class="meta">Không có câu nào.</p>';
+    }
+
+    // ---------------------------------------------------------------- user management
+    const USER_TYPE = { GUEST: 'Khách', APPLE: 'Apple', GOOGLE: 'Google' };
+    const USER_PAGE_SIZE = 25;
+    let userPage = 0, usersLoaded = false;
+
+    const shortId = id => id ? id.slice(0, 8) : '';
+    const dateShort = s => s ? new Date(s).toLocaleString('vi-VN',
+      { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–';
+
+    async function loadUsers() {
+      if (userPage < 0) userPage = 0;
+      const q = $('userSearch').value.trim();
+      const tbody = $('userTable').querySelector('tbody');
+      tbody.innerHTML = '<tr><td colspan="7" class="meta">Đang tải…</td></tr>';
+      try {
+        const d = await api('/users?size=' + USER_PAGE_SIZE + '&page=' + userPage
+          + (q ? '&q=' + encodeURIComponent(q) : ''));
+        $('userTotal').textContent = fmt(d.total) + ' người dùng';
+        $('userPageLbl').textContent = `Trang ${d.page + 1}/${Math.max(d.totalPages, 1)}`;
+        $('userPrev').disabled = d.page <= 0;
+        $('userNext').disabled = d.page + 1 >= d.totalPages;
+        tbody.innerHTML = d.users.map(u => `
+          <tr class="lesson-row" tabindex="0" onclick="openUser('${u.id}')"
+            onkeydown="if(event.key==='Enter')openUser('${u.id}')">
+            <td>${esc(u.displayName || u.email || '(chưa đặt tên)')}
+              <span class="meta">${shortId(u.id)}</span>
+              ${u.deleted ? '<span class="flag f-EMPTY">đã xoá</span>' : ''}</td>
+            <td>${USER_TYPE[u.type] || u.type}</td>
+            <td style="font-size:.78rem">${esc(u.deviceId || '–')}
+              <span class="meta">${esc(u.lastLoginIp || '')}</span></td>
+            <td>${u.students}</td>
+            <td>${fmt(u.coins)}</td>
+            <td>${u.premium ? '<span class="flag f-ONE_LEVEL">Premium</span>'
+              : '<span class="meta">Free</span>'}</td>
+            <td class="meta">${dateShort(u.lastLoginAt)}</td>
+          </tr>`).join('') || '<tr><td colspan="7" class="meta">Không có user.</td></tr>';
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" class="err">${esc(e.message)}</td></tr>`;
+      }
+    }
+
+    async function openUser(id) {
+      $('drawerBody').innerHTML = '<p class="meta">Đang tải…</p>';
+      $('drawer').classList.add('open'); $('drawerBg').classList.add('open');
+      try {
+        renderUser(await api('/users/' + id));
+        $('drawer').querySelector('.close').focus();
+      } catch (e) { $('drawerBody').innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+    }
+
+    function renderUser(u) {
+      const kv = (k, v) => v ? `<div class="meta"><b>${k}:</b> ${esc(v)}</div>` : '';
+      const students = u.students.length
+        ? u.students.map(s => `<div class="q">
+            <div class="top"><span class="pill">${esc(s.grade || '?')}</span>
+              <span>${esc(s.book || '')}</span>
+              <span class="meta">${s.attempts} lượt làm</span></div>
+            <div class="stem">${esc(s.name)} · <span class="green">${fmt(s.coins)} xu</span></div>
+            <div class="toolbar" style="margin:6px 0 0">
+              <input id="coin_${s.id}" type="number" placeholder="± xu" style="min-width:110px" />
+              <input id="coinr_${s.id}" placeholder="lý do" style="min-width:140px" />
+              <button class="tab" onclick="adjustCoins('${s.id}','${u.id}')">Chỉnh xu</button>
+            </div></div>`).join('')
+        : '<p class="meta">Chưa có học sinh.</p>';
+      const subs = u.subscriptions.length
+        ? `<table><thead><tr><th>Nguồn</th><th>Trạng thái</th><th>Hết hạn</th></tr></thead>
+            <tbody>${u.subscriptions.map(s => `<tr><td>${esc(s.provider)}</td>
+              <td>${esc(s.status)}</td><td class="meta">${dateShort(s.expiresAt)}</td></tr>`)
+            .join('')}</tbody></table>`
+        : '<p class="meta">Chưa có subscription.</p>';
+      $('drawerBody').innerHTML = `
+        <h3 id="dTitle">${esc(u.displayName || u.email || '(chưa đặt tên)')}</h3>
+        <div class="meta" style="margin-top:0">${USER_TYPE[u.type] || u.type} ·
+          ${esc(u.id)}${u.deleted ? ' · đã xoá' : ''}</div>
+        <div class="q" style="margin-top:12px">
+          <div class="top"><span class="pill">${u.premium ? 'Premium' : 'Free'}</span></div>
+          ${kv('Email', u.email)}${kv('Thiết bị', u.deviceId)}
+          ${kv('IP gần nhất', u.lastLoginIp)}${kv('Thiết bị (UA)', u.lastUserAgent)}
+          ${kv('Đăng nhập', dateShort(u.lastLoginAt))}${kv('Tạo lúc', dateShort(u.createdAt))}
+          <div class="toolbar" style="margin:10px 0 0">
+            <input id="premMonths" type="number" value="12" title="Số tháng"
+              style="min-width:90px" />
+            <button class="tab" onclick="grantPremium('${u.id}')">Nâng Premium</button>
+            <button class="tab" style="background:var(--danger)"
+              onclick="revokePremium('${u.id}')">Hạ Premium</button>
+          </div></div>
+        <h2>Học sinh (${u.students.length})</h2>${students}
+        <h2>Subscription</h2>${subs}`;
+    }
+
+    async function grantPremium(userId) {
+      const months = parseInt($('premMonths').value, 10) || 12;
+      try {
+        await api('/users/' + userId + '/premium', 'POST', { months });
+        await openUser(userId);
+        loadUsers();
+      } catch (e) { alert(e.message); }
+    }
+
+    async function revokePremium(userId) {
+      if (!confirm('Hạ Premium người dùng này về Free?')) return;
+      try {
+        await api('/users/' + userId + '/premium/revoke', 'POST', {});
+        await openUser(userId);
+        loadUsers();
+      } catch (e) { alert(e.message); }
+    }
+
+    async function adjustCoins(studentId, userId) {
+      const amount = parseInt($('coin_' + studentId).value, 10);
+      if (!amount) { alert('Nhập số xu (dương để cộng, âm để trừ).'); return; }
+      const reason = $('coinr_' + studentId).value.trim();
+      try {
+        const r = await api('/students/' + studentId + '/coins', 'POST', { amount, reason });
+        await openUser(userId);
+        loadUsers();
+        alert('Đã cập nhật. Số dư mới: ' + r.balance + ' xu.');
+      } catch (e) { alert(e.message); }
     }
 
     function startAuto() {

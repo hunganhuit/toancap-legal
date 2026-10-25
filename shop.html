@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mua gói Premium — Toán Tiểu Học</title>
+  <style>
+    :root {
+      --primary: #6B5CE6; --accent: #FF9933; --ink: #2b2b40; --muted: #7a7a95;
+      --bg: #f6f5ff; --card: #ffffff; --line: #e7e5f5; --ok: #1f9d6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--ink); margin: 0; min-height: 100vh;
+      padding: 24px 16px; line-height: 1.55;
+    }
+    .wrap { max-width: 520px; margin: 0 auto; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800;
+      font-size: 1.3rem; margin-bottom: 4px; }
+    .brand .dot { width: 30px; height: 30px; border-radius: 9px;
+      background: linear-gradient(135deg, var(--primary), var(--accent)); }
+    .sub { color: var(--muted); font-size: .9rem; margin-bottom: 20px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+      padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(107,92,230,.05); }
+    h2 { font-size: 1rem; margin: 0 0 14px; }
+    .plan { display: flex; align-items: center; justify-content: space-between;
+      border: 2px solid var(--line); border-radius: 14px; padding: 14px 16px;
+      margin-bottom: 10px; cursor: pointer; transition: .15s; }
+    .plan:hover { border-color: var(--primary); }
+    .plan.on { border-color: var(--primary); background: #f3f1ff; }
+    .plan .m { font-weight: 700; }
+    .plan .p { color: var(--primary); font-weight: 800; }
+    .plan .save { color: var(--accent); font-size: .78rem; font-weight: 700; }
+    button { width: 100%; padding: 14px; border: 0; border-radius: 14px;
+      background: var(--primary); color: #fff; font-weight: 700; font-size: 1rem;
+      cursor: pointer; }
+    button:disabled { opacity: .5; cursor: default; }
+    .qr { text-align: center; }
+    .qr img { width: 240px; max-width: 100%; border-radius: 12px; border: 1px solid var(--line); }
+    .row { display: flex; justify-content: space-between; padding: 8px 0;
+      border-bottom: 1px dashed var(--line); font-size: .92rem; }
+    .row:last-child { border-bottom: 0; }
+    .row b { font-weight: 700; }
+    .memo { background: #fff7ec; border: 1px solid #ffe2bd; border-radius: 10px;
+      padding: 10px 12px; font-size: .9rem; margin: 10px 0; }
+    .memo code { background: #fff; padding: 2px 8px; border-radius: 6px; font-weight: 800;
+      color: var(--accent); font-size: 1.05rem; letter-spacing: 1px; }
+    .status { text-align: center; padding: 12px; border-radius: 12px; font-weight: 600;
+      margin-top: 12px; }
+    .status.wait { background: #fff7ec; color: #a66a16; }
+    .status.paid { background: #e7f8f0; color: var(--ok); }
+    .code-box { text-align: center; margin: 14px 0; }
+    .code-box .code { font-size: 1.6rem; font-weight: 900; letter-spacing: 2px;
+      color: var(--primary); background: #f3f1ff; padding: 12px; border-radius: 12px;
+      display: inline-block; user-select: all; }
+    .steps { font-size: .88rem; color: var(--muted); margin-top: 14px; padding-left: 18px; }
+    .steps li { margin-bottom: 4px; }
+    .err { color: #d14343; font-size: .9rem; min-height: 1.1em; text-align: center; }
+    .muted { color: var(--muted); font-size: .82rem; }
+    .back { background: none; color: var(--muted); width: auto; padding: 8px 0; font-weight: 600; }
+    .fine { font-size: .78rem; color: var(--muted); margin-top: 18px; text-align: center; }
+    a { color: var(--primary); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand"><span class="dot"></span> Toán Tiểu Học</div>
+    <div class="sub">Mua gói Premium — mở khoá học không giới hạn, bài kiểm tra, nâng cao, báo cáo.</div>
+
+    <!-- Bước 1: chọn gói -->
+    <div class="card" id="step1">
+      <h2>Chọn gói</h2>
+      <div id="plans"></div>
+      <div class="err" id="err1"></div>
+      <button id="buy" onclick="createOrder()" disabled>Mua gói</button>
+      <p class="muted" style="margin-top:12px">Thanh toán bằng chuyển khoản ngân hàng (quét
+        VietQR). Sau khi nhận được tiền, hệ thống tạo <b>mã kích hoạt</b> — bạn nhập mã trong
+        ứng dụng để mở Premium.</p>
+    </div>
+
+    <!-- Bước 2: thanh toán -->
+    <div class="card" id="step2" style="display:none">
+      <h2>Chuyển khoản</h2>
+      <div class="qr"><img id="qr" alt="VietQR" /></div>
+      <div class="memo">Nội dung chuyển khoản (BẮT BUỘC):
+        <code id="memo"></code><br>
+        <span class="muted">Ghi đúng nội dung này để hệ thống tự nhận. Chuyển đúng số tiền.</span>
+      </div>
+      <div class="row"><span>Ngân hàng</span><b id="bank"></b></div>
+      <div class="row"><span>Số tài khoản</span><b id="acc"></b></div>
+      <div class="row"><span>Chủ tài khoản</span><b id="holder"></b></div>
+      <div class="row"><span>Số tiền</span><b id="amount"></b></div>
+      <div class="status wait" id="status">⏳ Đang chờ thanh toán… (tự kiểm tra mỗi 5 giây)</div>
+      <button class="back" onclick="reset()">← Chọn gói khác</button>
+    </div>
+
+    <!-- Bước 3: nhận mã -->
+    <div class="card" id="step3" style="display:none">
+      <div class="status paid">✅ Thanh toán thành công!</div>
+      <div class="code-box">
+        <div class="muted" style="margin-bottom:6px">Mã kích hoạt của bạn:</div>
+        <div class="code" id="code"></div>
+      </div>
+      <ol class="steps">
+        <li>Mở ứng dụng <b>Toán Tiểu Học</b>.</li>
+        <li>Vào <b>Khu phụ huynh</b> (qua cổng xác nhận người lớn).</li>
+        <li>Chọn <b>Nhập mã kích hoạt</b> → nhập mã trên → Premium được mở ngay.</li>
+      </ol>
+      <p class="muted">Chụp màn hình lưu lại mã phòng khi cần. Mã dùng được một lần.</p>
+    </div>
+
+    <p class="fine">
+      Cần hỗ trợ? <a href="mailto:hunganhuit@gmail.com">hunganhuit@gmail.com</a> ·
+      <a href="privacy.html">Bảo mật</a> · <a href="terms.html">Điều khoản</a>
+    </p>
+  </div>
+
+  <script>
+    // Đổi nếu backend ở domain khác.
+    const API = 'https://toancap1-production.up.railway.app/api/v1';
+    const $ = id => document.getElementById(id);
+    const vnd = n => (n ?? 0).toLocaleString('vi-VN') + 'đ';
+    const MONTH_LABEL = { 1: '1 tháng', 6: '6 tháng', 12: '12 tháng' };
+    let selected = null, pollTimer = null;
+
+    async function loadConfig() {
+      try {
+        const res = await fetch(API + '/shop/config');
+        const { data } = await res.json();
+        renderPlans(data.plans, data);
+      } catch (e) { $('err1').textContent = 'Không tải được bảng giá. Thử lại sau.'; }
+    }
+
+    let cfg = null;
+    function renderPlans(plans, config) {
+      cfg = config;
+      const best = Math.max(...plans.map(p => p.price / p.months)); // for "save" hint
+      $('plans').innerHTML = plans.map(p => {
+        const perMonth = Math.round(p.price / p.months);
+        const save = p.months > 1
+          ? `<span class="save">~${vnd(perMonth)}/tháng</span>` : '';
+        return `<div class="plan" onclick="pick(${p.months}, ${p.price}, this)">
+          <div><div class="m">${MONTH_LABEL[p.months] || p.months + ' tháng'}</div>${save}</div>
+          <div class="p">${vnd(p.price)}</div>
+        </div>`;
+      }).join('');
+    }
+
+    function pick(months, price, el) {
+      selected = { months, price };
+      document.querySelectorAll('.plan').forEach(p => p.classList.remove('on'));
+      el.classList.add('on');
+      $('buy').disabled = false;
+    }
+
+    async function createOrder() {
+      if (!selected) return;
+      $('buy').disabled = true; $('err1').textContent = '';
+      try {
+        const res = await fetch(API + '/shop/orders', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ months: selected.months })
+        });
+        if (!res.ok) throw new Error('order');
+        const { data } = await res.json();
+        showPayment(data);
+      } catch (e) {
+        $('err1').textContent = 'Không tạo được đơn. Thử lại.';
+        $('buy').disabled = false;
+      }
+    }
+
+    function showPayment(o) {
+      $('step1').style.display = 'none';
+      $('step2').style.display = 'block';
+      if (o.qrUrl) $('qr').src = o.qrUrl; else $('qr').style.display = 'none';
+      $('memo').textContent = o.transferMemo;
+      $('bank').textContent = o.bankName || '—';
+      $('acc').textContent = o.bankAccount || '—';
+      $('holder').textContent = o.accountHolder || '—';
+      $('amount').textContent = vnd(o.amount);
+      poll(o.orderCode);
+    }
+
+    function poll(orderCode) {
+      clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        try {
+          const res = await fetch(API + '/shop/orders/' + orderCode);
+          const { data } = await res.json();
+          if (data.status === 'PAID' && data.code) {
+            clearInterval(pollTimer);
+            showCode(data.code);
+          }
+        } catch (e) { /* mạng chập chờn: thử lại lần sau */ }
+      }, 5000);
+    }
+
+    function showCode(code) {
+      $('step2').style.display = 'none';
+      $('step3').style.display = 'block';
+      $('code').textContent = code;
+    }
+
+    function reset() {
+      clearInterval(pollTimer);
+      selected = null;
+      $('step2').style.display = 'none';
+      $('step1').style.display = 'block';
+      $('buy').disabled = true;
+      document.querySelectorAll('.plan').forEach(p => p.classList.remove('on'));
+    }
+
+    loadConfig();
+  </script>
+</body>
+</html>

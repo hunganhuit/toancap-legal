@@ -184,6 +184,20 @@
         <button class="tab" id="userNext" onclick="userPage++;loadUsers()">Sau ›</button>
       </div>
 
+      <h2>Đơn hàng Premium (web shop)</h2>
+      <div class="toolbar">
+        <button class="tab" onclick="loadOrders()">Làm mới</button>
+        <span class="meta">Đơn chưa trả: bấm “Xác nhận” để cấp mã khi đã nhận được tiền
+          (dùng khi chưa bật SePay tự động).</span>
+      </div>
+      <div class="panel">
+        <table id="orderTable">
+          <thead><tr><th>Mã đơn</th><th>Gói</th><th>Số tiền</th><th>Trạng thái</th>
+            <th>Mã đã cấp</th><th>Tạo lúc</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
       <p class="meta" id="meta"></p>
     </div>
     <div class="empty" id="empty">Nhập API base + admin token rồi bấm “Tải”.</div>
@@ -308,6 +322,7 @@
         $('dash').style.display = 'block';
         if (!gradeData) await loadGrade(currentGrade || d.content.byGrade[0]?.grade);
         if (!usersLoaded) { usersLoaded = true; loadUsers(); }
+        if (!ordersLoaded) { ordersLoaded = true; loadOrders(); }
         startAuto();
       } catch (e) {
         $('err').textContent = e.message;
@@ -683,6 +698,46 @@
         await openUser(userId);
         loadUsers();
         alert('Đã cập nhật. Số dư mới: ' + r.balance + ' xu.');
+      } catch (e) { alert(e.message); }
+    }
+
+    // ---------------------------------------------------------------- shop orders
+    const ORDER_STATUS = { PENDING: 'Chờ trả', PAID: 'Đã trả', EXPIRED: 'Hết hạn' };
+    let ordersLoaded = false;
+
+    async function loadOrders() {
+      const tbody = $('orderTable').querySelector('tbody');
+      tbody.innerHTML = '<tr><td colspan="7" class="meta">Đang tải…</td></tr>';
+      try {
+        const list = await api('/shop/orders?limit=100');
+        tbody.innerHTML = list.map(o => {
+          const canSettle = o.status === 'PENDING';
+          return `<tr>
+            <td><b>${esc(o.orderCode)}</b></td>
+            <td>${o.months} tháng</td>
+            <td>${fmt(o.amount)}đ</td>
+            <td>${o.status === 'PAID'
+                ? '<span class="flag f-ONE_LEVEL">Đã trả</span>'
+                : (o.status === 'PENDING' ? '<span class="flag f-THIN">Chờ trả</span>'
+                   : '<span class="meta">Hết hạn</span>')}</td>
+            <td>${o.code ? `<code>${esc(o.code)}</code>` : '<span class="meta">–</span>'}</td>
+            <td class="meta">${dateShort(o.createdAt || '')}</td>
+            <td>${canSettle
+                ? `<button class="tab" onclick="settleOrder('${esc(o.orderCode)}')">Xác nhận</button>`
+                : ''}</td>
+          </tr>`;
+        }).join('') || '<tr><td colspan="7" class="meta">Chưa có đơn nào.</td></tr>';
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" class="err">${esc(e.message)}</td></tr>`;
+      }
+    }
+
+    async function settleOrder(orderCode) {
+      if (!confirm('Xác nhận ĐÃ NHẬN tiền cho đơn ' + orderCode + ' và cấp mã?')) return;
+      try {
+        const o = await api('/shop/orders/' + orderCode + '/settle', 'POST', {});
+        alert('Đã cấp mã: ' + (o.code || '(xem lại danh sách)'));
+        loadOrders();
       } catch (e) { alert(e.message); }
     }
 

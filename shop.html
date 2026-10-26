@@ -54,6 +54,11 @@
     .code-box .code { font-size: 1.6rem; font-weight: 900; letter-spacing: 2px;
       color: var(--primary); background: #f3f1ff; padding: 12px; border-radius: 12px;
       display: inline-block; user-select: all; }
+    .code-actions { display: flex; gap: 10px; margin: 4px 0 6px; }
+    .act { flex: 1; background: #fff; color: var(--primary); border: 1.5px solid var(--primary);
+      border-radius: 12px; padding: 11px; font-weight: 700; font-size: .92rem; cursor: pointer; }
+    .act:active { background: #f3f1ff; }
+    .act.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
     .steps { font-size: .88rem; color: var(--muted); margin-top: 14px; padding-left: 18px; }
     .steps li { margin-bottom: 4px; }
     .err { color: #d14343; font-size: .9rem; min-height: 1.1em; text-align: center; }
@@ -101,6 +106,10 @@
       <div class="code-box">
         <div class="muted" style="margin-bottom:6px">Mã kích hoạt của bạn:</div>
         <div class="code" id="code"></div>
+      </div>
+      <div class="code-actions">
+        <button class="act" onclick="copyCode()" id="btnCopy">📋 Sao chép mã</button>
+        <button class="act" onclick="downloadCode()">⬇️ Tải ảnh lưu mã</button>
       </div>
       <ol class="steps">
         <li>Mở ứng dụng <b>Toán Tiểu Học</b>.</li>
@@ -197,10 +206,75 @@
       }, 5000);
     }
 
+    let currentCode = null;
     function showCode(code) {
+      currentCode = code;
       $('step2').style.display = 'none';
       $('step3').style.display = 'block';
       $('code').textContent = code;
+    }
+
+    async function copyCode() {
+      if (!currentCode) return;
+      try {
+        await navigator.clipboard.writeText(currentCode);
+      } catch (e) {
+        // Fallback cho trình duyệt cũ / không có quyền clipboard.
+        const t = document.createElement('textarea');
+        t.value = currentCode; document.body.appendChild(t); t.select();
+        try { document.execCommand('copy'); } catch (_) {}
+        document.body.removeChild(t);
+      }
+      const b = $('btnCopy');
+      b.textContent = '✓ Đã sao chép'; b.classList.add('ok');
+      setTimeout(() => { b.textContent = '📋 Sao chép mã'; b.classList.remove('ok'); }, 1800);
+    }
+
+    // Vẽ mã lên một ảnh PNG (card tím) rồi tải về — để phụ huynh lưu lại chắc chắn.
+    function downloadCode() {
+      if (!currentCode) return;
+      const W = 1000, H = 600, c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      const g = c.getContext('2d');
+      // nền gradient
+      const grad = g.createLinearGradient(0, 0, W, H);
+      grad.addColorStop(0, '#6B5CE6'); grad.addColorStop(1, '#9d7bff');
+      g.fillStyle = grad; g.fillRect(0, 0, W, H);
+      // thẻ trắng
+      g.fillStyle = '#ffffff';
+      roundRect(g, 60, 90, W - 120, H - 180, 28); g.fill();
+      g.textAlign = 'center';
+      g.fillStyle = '#6B5CE6';
+      g.font = 'bold 40px -apple-system, Arial, sans-serif';
+      g.fillText('TOÁN TIỂU HỌC', W / 2, 175);
+      g.fillStyle = '#7a7a95';
+      g.font = '26px -apple-system, Arial, sans-serif';
+      g.fillText('Mã kích hoạt Premium', W / 2, 225);
+      // khung mã
+      g.fillStyle = '#f3f1ff';
+      roundRect(g, 160, 270, W - 320, 110, 18); g.fill();
+      g.fillStyle = '#6B5CE6';
+      g.font = 'bold 64px "Courier New", monospace';
+      g.fillText(currentCode, W / 2, 348);
+      // hướng dẫn
+      g.fillStyle = '#7a7a95';
+      g.font = '24px -apple-system, Arial, sans-serif';
+      g.fillText('Mở app → Khu phụ huynh → Nhập mã kích hoạt', W / 2, 440);
+      g.fillText('Mã dùng được một lần. Giữ kín, không chia sẻ.', W / 2, 478);
+      const a = document.createElement('a');
+      a.download = 'ma-premium-' + currentCode + '.png';
+      a.href = c.toDataURL('image/png');
+      a.click();
+    }
+
+    function roundRect(g, x, y, w, h, r) {
+      g.beginPath();
+      g.moveTo(x + r, y);
+      g.arcTo(x + w, y, x + w, y + h, r);
+      g.arcTo(x + w, y + h, x, y + h, r);
+      g.arcTo(x, y + h, x, y, r);
+      g.arcTo(x, y, x + w, y, r);
+      g.closePath();
     }
 
     function reset() {

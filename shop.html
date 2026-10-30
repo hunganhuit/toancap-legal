@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mua gói Premium — Toán Tiểu Học</title>
+  <title>Gói Premium — Toán Tiểu Học</title>
   <style>
     :root {
       --primary: #6B5CE6; --accent: #FF9933; --ink: #2b2b40; --muted: #7a7a95;
-      --bg: #f6f5ff; --card: #ffffff; --line: #e7e5f5; --ok: #1f9d6b;
+      --bg: #f6f5ff; --card: #ffffff; --line: #e7e5f5; --ok: #1f9d6b; --warn: #a66a16;
     }
     * { box-sizing: border-box; }
     body {
@@ -24,6 +24,10 @@
     .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px;
       padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(107,92,230,.05); }
     h2 { font-size: 1rem; margin: 0 0 14px; }
+    input { width: 100%; padding: 13px 14px; border: 2px solid var(--line); border-radius: 12px;
+      font-size: 1.1rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      margin-bottom: 10px; font-family: "SF Mono", Menlo, monospace; }
+    input:focus { outline: none; border-color: var(--primary); }
     .plan { display: flex; align-items: center; justify-content: space-between;
       border: 2px solid var(--line); border-radius: 14px; padding: 14px 16px;
       margin-bottom: 10px; cursor: pointer; transition: .15s; }
@@ -48,44 +52,77 @@
       color: var(--accent); font-size: 1.05rem; letter-spacing: 1px; }
     .status { text-align: center; padding: 12px; border-radius: 12px; font-weight: 600;
       margin-top: 12px; }
-    .status.wait { background: #fff7ec; color: #a66a16; }
+    .status.wait { background: #fff7ec; color: var(--warn); }
     .status.paid { background: #e7f8f0; color: var(--ok); }
-    .code-box { text-align: center; margin: 14px 0; }
-    .code-box .code { font-size: 1.6rem; font-weight: 900; letter-spacing: 2px;
-      color: var(--primary); background: #f3f1ff; padding: 12px; border-radius: 12px;
-      display: inline-block; user-select: all; }
-    .code-actions { display: flex; gap: 10px; margin: 4px 0 6px; }
-    .act { flex: 1; background: #fff; color: var(--primary); border: 1.5px solid var(--primary);
-      border-radius: 12px; padding: 11px; font-weight: 700; font-size: .92rem; cursor: pointer; }
-    .act:active { background: #f3f1ff; }
-    .act.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
-    .steps { font-size: .88rem; color: var(--muted); margin-top: 14px; padding-left: 18px; }
+    .acct { display: flex; justify-content: space-between; align-items: center;
+      background: #f3f1ff; border-radius: 12px; padding: 10px 14px; font-size: .92rem; }
+    .acct b { font-family: "SF Mono", Menlo, monospace; letter-spacing: 1px; }
+    .link { background: none; color: var(--primary); width: auto; padding: 0; font-size: .88rem; }
+    .note { background: #fff7ec; border: 1px solid #ffe2bd; color: var(--warn);
+      border-radius: 10px; padding: 10px 12px; font-size: .86rem; margin-top: 10px; }
+    .steps { font-size: .88rem; color: var(--muted); margin: 8px 0 0; padding-left: 18px; }
     .steps li { margin-bottom: 4px; }
     .err { color: #d14343; font-size: .9rem; min-height: 1.1em; text-align: center; }
     .muted { color: var(--muted); font-size: .82rem; }
     .back { background: none; color: var(--muted); width: auto; padding: 8px 0; font-weight: 600; }
     .fine { font-size: .78rem; color: var(--muted); margin-top: 18px; text-align: center; }
+    .hidden { display: none; }
     a { color: var(--primary); }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="brand"><span class="dot"></span> Toán Tiểu Học</div>
-    <div class="sub">Mua gói Premium — mở khoá học không giới hạn, bài kiểm tra, nâng cao, báo cáo.</div>
+    <div class="sub">Gói Premium — học không giới hạn, bài kiểm tra, nâng cao, báo cáo.</div>
 
-    <!-- Bước 1: chọn gói -->
-    <div class="card" id="step1">
-      <h2>Chọn gói</h2>
-      <div id="plans"></div>
-      <div class="err" id="err1"></div>
-      <button id="buy" onclick="createOrder()" disabled>Mua gói</button>
-      <p class="muted" style="margin-top:12px">Thanh toán bằng chuyển khoản ngân hàng (quét
-        VietQR). Sau khi nhận được tiền, hệ thống tạo <b>mã kích hoạt</b> — bạn nhập mã trong
-        ứng dụng để mở Premium.</p>
+    <!-- Bước 1: nhập mã tài khoản -->
+    <div class="card" id="stepAccount">
+      <h2>Mã tài khoản</h2>
+      <input id="accountInput" placeholder="VD: 7K4Q-9M2X" autocomplete="off"
+        autocapitalize="characters" spellcheck="false" maxlength="12" />
+      <div class="err" id="errAccount"></div>
+      <button id="btnAccount" onclick="checkAccount()">Tiếp tục</button>
+      <ol class="steps">
+        <li>Mở ứng dụng <b>Toán Tiểu Học</b> → tab <b>Phụ huynh</b>.</li>
+        <li>Mục <b>Tài khoản</b> → <b>Mã tài khoản</b> → bấm biểu tượng sao chép.</li>
+        <li>Dán mã vào ô trên.</li>
+      </ol>
     </div>
 
-    <!-- Bước 2: thanh toán -->
-    <div class="card" id="step2" style="display:none">
+    <!-- Bước 2: chọn gói hoặc nhập mã kích hoạt -->
+    <div id="stepChoose" class="hidden">
+      <div class="card">
+        <div class="acct">
+          <span>Tài khoản <b id="acctLabel"></b></span>
+          <button class="link" onclick="changeAccount()">Đổi</button>
+        </div>
+        <div class="note hidden" id="guestNote">
+          Tài khoản này chưa <b>Đăng nhập với Apple</b>, nên gói sẽ gắn với máy đang dùng. Để
+          không mất gói khi đổi máy hoặc xoá ứng dụng, hãy vào <b>Phụ huynh → Đăng nhập với
+          Apple</b> trong ứng dụng.
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Mua gói</h2>
+        <div id="plans"></div>
+        <div class="err" id="errBuy"></div>
+        <button id="buy" onclick="createOrder()" disabled>Thanh toán</button>
+        <p class="muted" style="margin-top:12px">Chuyển khoản ngân hàng (quét VietQR). Nhận
+          được tiền là Premium tự kích hoạt cho tài khoản trên.</p>
+      </div>
+
+      <div class="card">
+        <h2>Tôi có mã kích hoạt</h2>
+        <input id="voucherInput" placeholder="TC-XXXX-XXXX" autocomplete="off"
+          autocapitalize="characters" spellcheck="false" maxlength="20" />
+        <div class="err" id="errVoucher"></div>
+        <button id="btnVoucher" onclick="redeem()">Kích hoạt</button>
+      </div>
+    </div>
+
+    <!-- Bước 3: chuyển khoản -->
+    <div class="card hidden" id="stepPay">
       <h2>Chuyển khoản</h2>
       <div class="qr"><img id="qr" alt="VietQR" /></div>
       <div class="memo">Nội dung chuyển khoản (BẮT BUỘC):
@@ -96,27 +133,18 @@
       <div class="row"><span>Số tài khoản</span><b id="acc"></b></div>
       <div class="row"><span>Chủ tài khoản</span><b id="holder"></b></div>
       <div class="row"><span>Số tiền</span><b id="amount"></b></div>
-      <div class="status wait" id="status">⏳ Đang chờ thanh toán… (tự kiểm tra mỗi 5 giây)</div>
-      <button class="back" onclick="reset()">← Chọn gói khác</button>
+      <div class="status wait">⏳ Đang chờ thanh toán… (tự kiểm tra mỗi 5 giây)</div>
+      <button class="back" onclick="backToChoose()">← Quay lại</button>
     </div>
 
-    <!-- Bước 3: nhận mã -->
-    <div class="card" id="step3" style="display:none">
-      <div class="status paid">✅ Thanh toán thành công!</div>
-      <div class="code-box">
-        <div class="muted" style="margin-bottom:6px">Mã kích hoạt của bạn:</div>
-        <div class="code" id="code"></div>
-      </div>
-      <div class="code-actions">
-        <button class="act" onclick="copyCode()" id="btnCopy">📋 Sao chép mã</button>
-        <button class="act" onclick="downloadCode()">⬇️ Tải ảnh lưu mã</button>
-      </div>
+    <!-- Bước 4: thành công -->
+    <div class="card hidden" id="stepDone">
+      <div class="status paid" id="doneTitle">✅ Đã kích hoạt Premium!</div>
+      <p id="doneText" style="text-align:center"></p>
       <ol class="steps">
-        <li>Mở ứng dụng <b>Toán Tiểu Học</b>.</li>
-        <li>Vào <b>Khu phụ huynh</b> (qua cổng xác nhận người lớn).</li>
-        <li>Chọn <b>Nhập mã kích hoạt</b> → nhập mã trên → Premium được mở ngay.</li>
+        <li>Mở lại ứng dụng <b>Toán Tiểu Học</b>.</li>
+        <li>Vào tab <b>Phụ huynh</b> để thấy “Premium đang bật”.</li>
       </ol>
-      <p class="muted">Chụp màn hình lưu lại mã phòng khi cần. Mã dùng được một lần.</p>
     </div>
 
     <p class="fine">
@@ -129,61 +157,102 @@
     // Đổi nếu backend ở domain khác.
     const API = 'https://toancap1-production.up.railway.app/api/v1';
     const $ = id => document.getElementById(id);
+    const show = (id, on) => $(id).classList.toggle('hidden', !on);
     const vnd = n => (n ?? 0).toLocaleString('vi-VN') + 'đ';
     const MONTH_LABEL = { 1: '1 tháng', 6: '6 tháng', 12: '12 tháng' };
-    let selected = null, pollTimer = null;
+    const normalize = s => (s || '').replace(/\s+/g, '').toUpperCase();
+    let account = null, selected = null, pollTimer = null;
+
+    // Lỗi API trả envelope {success, error:{code,message}}.
+    async function api(path, options) {
+      const res = await fetch(API + path, options);
+      let body = null;
+      try { body = await res.json(); } catch (_) { /* không phải JSON */ }
+      if (!res.ok || !body || body.success === false) {
+        const err = new Error('api');
+        err.status = res.status;
+        err.code = body && body.error ? body.error.code : null;
+        throw err;
+      }
+      return body.data;
+    }
+
+    async function checkAccount() {
+      const code = normalize($('accountInput').value);
+      $('errAccount').textContent = '';
+      if (!code) { $('errAccount').textContent = 'Nhập mã tài khoản.'; return; }
+      $('btnAccount').disabled = true;
+      try {
+        const data = await api('/shop/accounts/' + encodeURIComponent(code));
+        account = code;
+        $('acctLabel').textContent = code;
+        show('guestNote', !data.linked);
+        show('stepAccount', false);
+        show('stepChoose', true);
+        loadConfig();
+      } catch (e) {
+        $('errAccount').textContent = e.status === 404
+          ? 'Không tìm thấy tài khoản. Kiểm tra lại mã trong ứng dụng.'
+          : e.status === 429 ? 'Thử lại sau ít phút.' : 'Lỗi kết nối. Thử lại.';
+      } finally {
+        $('btnAccount').disabled = false;
+      }
+    }
+
+    function changeAccount() {
+      clearInterval(pollTimer);
+      account = null; selected = null;
+      show('stepChoose', false); show('stepPay', false); show('stepDone', false);
+      show('stepAccount', true);
+    }
 
     async function loadConfig() {
       try {
-        const res = await fetch(API + '/shop/config');
-        const { data } = await res.json();
-        renderPlans(data.plans, data);
-      } catch (e) { $('err1').textContent = 'Không tải được bảng giá. Thử lại sau.'; }
+        const data = await api('/shop/config');
+        renderPlans(data.plans);
+      } catch (e) { $('errBuy').textContent = 'Không tải được bảng giá. Thử lại sau.'; }
     }
 
-    let cfg = null;
-    function renderPlans(plans, config) {
-      cfg = config;
-      const best = Math.max(...plans.map(p => p.price / p.months)); // for "save" hint
+    function renderPlans(plans) {
       $('plans').innerHTML = plans.map(p => {
         const perMonth = Math.round(p.price / p.months);
-        const save = p.months > 1
-          ? `<span class="save">~${vnd(perMonth)}/tháng</span>` : '';
-        return `<div class="plan" onclick="pick(${p.months}, ${p.price}, this)">
+        const save = p.months > 1 ? `<span class="save">~${vnd(perMonth)}/tháng</span>` : '';
+        return `<div class="plan" onclick="pick(${p.months}, this)">
           <div><div class="m">${MONTH_LABEL[p.months] || p.months + ' tháng'}</div>${save}</div>
           <div class="p">${vnd(p.price)}</div>
         </div>`;
       }).join('');
+      $('buy').disabled = true;
     }
 
-    function pick(months, price, el) {
-      selected = { months, price };
+    function pick(months, el) {
+      selected = months;
       document.querySelectorAll('.plan').forEach(p => p.classList.remove('on'));
       el.classList.add('on');
       $('buy').disabled = false;
     }
 
     async function createOrder() {
-      if (!selected) return;
-      $('buy').disabled = true; $('err1').textContent = '';
+      if (!selected || !account) return;
+      $('buy').disabled = true; $('errBuy').textContent = '';
       try {
-        const res = await fetch(API + '/shop/orders', {
+        const order = await api('/shop/orders', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ months: selected.months })
+          body: JSON.stringify({ months: selected, accountCode: account })
         });
-        if (!res.ok) throw new Error('order');
-        const { data } = await res.json();
-        showPayment(data);
+        showPayment(order);
       } catch (e) {
-        $('err1').textContent = 'Không tạo được đơn. Thử lại.';
+        $('errBuy').textContent = e.status === 429
+          ? 'Thao tác hơi nhanh, thử lại sau ít phút.' : 'Không tạo được đơn. Thử lại.';
         $('buy').disabled = false;
       }
     }
 
     function showPayment(o) {
-      $('step1').style.display = 'none';
-      $('step2').style.display = 'block';
-      if (o.qrUrl) $('qr').src = o.qrUrl; else $('qr').style.display = 'none';
+      show('stepChoose', false);
+      show('stepPay', true);
+      if (o.qrUrl) { $('qr').src = o.qrUrl; $('qr').style.display = ''; }
+      else { $('qr').style.display = 'none'; }
       $('memo').textContent = o.transferMemo;
       $('bank').textContent = o.bankName || '—';
       $('acc').textContent = o.bankAccount || '—';
@@ -196,97 +265,57 @@
       clearInterval(pollTimer);
       pollTimer = setInterval(async () => {
         try {
-          const res = await fetch(API + '/shop/orders/' + orderCode);
-          const { data } = await res.json();
-          if (data.status === 'PAID' && data.code) {
+          const o = await api('/shop/orders/' + encodeURIComponent(orderCode));
+          if (o.status === 'PAID') {
             clearInterval(pollTimer);
-            showCode(data.code);
+            showDone(`Gói ${MONTH_LABEL[o.months] || o.months + ' tháng'} đã được cộng vào `
+              + `tài khoản ${account}.`);
           }
         } catch (e) { /* mạng chập chờn: thử lại lần sau */ }
       }, 5000);
     }
 
-    let currentCode = null;
-    function showCode(code) {
-      currentCode = code;
-      $('step2').style.display = 'none';
-      $('step3').style.display = 'block';
-      $('code').textContent = code;
-    }
-
-    async function copyCode() {
-      if (!currentCode) return;
-      try {
-        await navigator.clipboard.writeText(currentCode);
-      } catch (e) {
-        // Fallback cho trình duyệt cũ / không có quyền clipboard.
-        const t = document.createElement('textarea');
-        t.value = currentCode; document.body.appendChild(t); t.select();
-        try { document.execCommand('copy'); } catch (_) {}
-        document.body.removeChild(t);
-      }
-      const b = $('btnCopy');
-      b.textContent = '✓ Đã sao chép'; b.classList.add('ok');
-      setTimeout(() => { b.textContent = '📋 Sao chép mã'; b.classList.remove('ok'); }, 1800);
-    }
-
-    // Vẽ mã lên một ảnh PNG (card tím) rồi tải về — để phụ huynh lưu lại chắc chắn.
-    function downloadCode() {
-      if (!currentCode) return;
-      const W = 1000, H = 600, c = document.createElement('canvas');
-      c.width = W; c.height = H;
-      const g = c.getContext('2d');
-      // nền gradient
-      const grad = g.createLinearGradient(0, 0, W, H);
-      grad.addColorStop(0, '#6B5CE6'); grad.addColorStop(1, '#9d7bff');
-      g.fillStyle = grad; g.fillRect(0, 0, W, H);
-      // thẻ trắng
-      g.fillStyle = '#ffffff';
-      roundRect(g, 60, 90, W - 120, H - 180, 28); g.fill();
-      g.textAlign = 'center';
-      g.fillStyle = '#6B5CE6';
-      g.font = 'bold 40px -apple-system, Arial, sans-serif';
-      g.fillText('TOÁN TIỂU HỌC', W / 2, 175);
-      g.fillStyle = '#7a7a95';
-      g.font = '26px -apple-system, Arial, sans-serif';
-      g.fillText('Mã kích hoạt Premium', W / 2, 225);
-      // khung mã
-      g.fillStyle = '#f3f1ff';
-      roundRect(g, 160, 270, W - 320, 110, 18); g.fill();
-      g.fillStyle = '#6B5CE6';
-      g.font = 'bold 64px "Courier New", monospace';
-      g.fillText(currentCode, W / 2, 348);
-      // hướng dẫn
-      g.fillStyle = '#7a7a95';
-      g.font = '24px -apple-system, Arial, sans-serif';
-      g.fillText('Mở app → Khu phụ huynh → Nhập mã kích hoạt', W / 2, 440);
-      g.fillText('Mã dùng được một lần. Giữ kín, không chia sẻ.', W / 2, 478);
-      const a = document.createElement('a');
-      a.download = 'ma-premium-' + currentCode + '.png';
-      a.href = c.toDataURL('image/png');
-      a.click();
-    }
-
-    function roundRect(g, x, y, w, h, r) {
-      g.beginPath();
-      g.moveTo(x + r, y);
-      g.arcTo(x + w, y, x + w, y + h, r);
-      g.arcTo(x + w, y + h, x, y + h, r);
-      g.arcTo(x, y + h, x, y, r);
-      g.arcTo(x, y, x + w, y, r);
-      g.closePath();
-    }
-
-    function reset() {
+    function backToChoose() {
       clearInterval(pollTimer);
-      selected = null;
-      $('step2').style.display = 'none';
-      $('step1').style.display = 'block';
-      $('buy').disabled = true;
-      document.querySelectorAll('.plan').forEach(p => p.classList.remove('on'));
+      show('stepPay', false);
+      show('stepChoose', true);
     }
 
-    loadConfig();
+    async function redeem() {
+      const code = normalize($('voucherInput').value);
+      $('errVoucher').textContent = '';
+      if (!code) { $('errVoucher').textContent = 'Nhập mã kích hoạt.'; return; }
+      $('btnVoucher').disabled = true;
+      try {
+        const r = await api('/shop/redeem', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountCode: account, code })
+        });
+        const until = r.expiresAt
+          ? new Date(r.expiresAt).toLocaleDateString('vi-VN') : '';
+        showDone(`Tài khoản ${account} đã có Premium` + (until ? ` đến ${until}.` : '.'));
+      } catch (e) {
+        const msg = {
+          INVALID_CODE: 'Mã kích hoạt không đúng.',
+          CODE_ALREADY_USED: 'Mã này đã được sử dụng.',
+          CODE_EXPIRED: 'Mã kích hoạt đã hết hạn.',
+          TOO_MANY_REQUESTS: 'Thử lại sau ít phút.'
+        }[e.code];
+        $('errVoucher').textContent = msg || 'Không kích hoạt được. Thử lại.';
+      } finally {
+        $('btnVoucher').disabled = false;
+      }
+    }
+
+    function showDone(text) {
+      show('stepChoose', false); show('stepPay', false);
+      $('doneText').textContent = text;
+      show('stepDone', true);
+    }
+
+    // Cho phép link hỗ trợ điền sẵn mã: shop.html?account=7K4Q-9M2X
+    const preset = new URLSearchParams(location.search).get('account');
+    if (preset) { $('accountInput').value = normalize(preset); checkAccount(); }
   </script>
 </body>
 </html>

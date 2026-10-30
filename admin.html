@@ -720,7 +720,9 @@
                 ? '<span class="flag f-ONE_LEVEL">Đã trả</span>'
                 : (o.status === 'PENDING' ? '<span class="flag f-THIN">Chờ trả</span>'
                    : '<span class="meta">Hết hạn</span>')}</td>
-            <td>${o.code ? `<code>${esc(o.code)}</code>` : '<span class="meta">–</span>'}</td>
+            <td>${o.code ? `<code>${esc(o.code)}</code>`
+                : (o.appliedToAccount ? '<span class="meta">Đã cộng vào tài khoản</span>'
+                   : '<span class="meta">–</span>')}</td>
             <td class="meta">${dateShort(o.createdAt || '')}</td>
             <td>${canSettle
                 ? `<button class="tab" onclick="settleOrder('${esc(o.orderCode)}')">Xác nhận</button>`
@@ -733,10 +735,12 @@
     }
 
     async function settleOrder(orderCode) {
-      if (!confirm('Xác nhận ĐÃ NHẬN tiền cho đơn ' + orderCode + ' và cấp mã?')) return;
+      if (!confirm('Xác nhận ĐÃ NHẬN tiền cho đơn ' + orderCode + '?')) return;
       try {
         const o = await api('/shop/orders/' + orderCode + '/settle', 'POST', {});
-        alert('Đã cấp mã: ' + (o.code || '(xem lại danh sách)'));
+        alert(o.appliedToAccount
+          ? 'Đã cộng Premium vào tài khoản của đơn.'
+          : 'Đã cấp mã: ' + (o.code || '(xem lại danh sách)'));
         loadOrders();
       } catch (e) { alert(e.message); }
     }
